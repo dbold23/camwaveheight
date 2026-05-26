@@ -18,7 +18,7 @@ Surfline runs CV-driven wave-height inference across their cam network operation
 
 Skip Surfline cams — their ToS prohibits scraping/redistribution. Use:
 
-- **Scripps Pier cam** — operated by Scripps Institution of Oceanography / CDIP. Research-friendly, co-located with CDIP 073 (Scripps Nearshore buoy). This is the MVP site.
+- **Scripps Pier cam** — operated by Scripps Institution of Oceanography / CDIP. Research-friendly, co-located with CDIP 201 (Scripps Nearshore buoy). This is the MVP site.
 - **Explore.org cams** — Torrey Pines, Trestles area, some NorCal spots. Publicly streamed, generally permissive for research demos.
 - **NOAA NOS webcams** — for select harbor/coastal sites.
 - **Your own recordings** — phone tripod at a known beach with known scale objects. Worst case fallback that's 100% ToS-clean.
@@ -32,7 +32,7 @@ Single-site proof of concept. The pier is the easiest case because piling geomet
 **Known geometry to bake in:**
 - Pier pilings ~6 m on-center, ~1 m diameter (verify in pier engineering docs — Scripps facilities should have these)
 - Pier deck elevation ~7 m above MLLW
-- Closest CDIP buoy: CDIP 073 (Scripps Nearshore) — confirm station ID before you start
+- Closest CDIP buoy: CDIP 201 (Scripps Nearshore) — confirm station ID before you start
 
 **Pipeline steps for the agents:**
 
@@ -59,7 +59,7 @@ Single-site proof of concept. The pier is the easiest case because piling geomet
    - Output: timestamped DataFrame of Hs, Tp
 
 6. **Validation** (`validate.py`)
-   - Pull CDIP 073 spectra over the same window via erddapy
+   - Pull CDIP 201 spectra over the same window via erddapy
    - Compute RMSE, bias, scatter index, R² between cam-derived Hs and buoy Hs
    - Plot 1:1 scatter, time-series overlay, residuals vs swell direction/period
 
@@ -175,7 +175,7 @@ camwaveheight/
 1. Public GitHub repo with README that leads with the validation plot
 2. 2-page PDF: approach, results, failure modes, what you'd do with their actual cam metadata + bathymetry
 3. Streamlit demo running live on one site
-4. Cover-letter hook: "RMSE 24 cm against CDIP 073 across 6 weeks at Scripps Pier — happy to walk you through the pipeline."
+4. Cover-letter hook: "RMSE 24 cm against CDIP 201 across 6 weeks at Scripps Pier — happy to walk you through the pipeline."
 
 ## Stretch (only if Phase 1–4 land cleanly)
 

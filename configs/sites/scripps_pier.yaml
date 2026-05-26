@@ -1,0 +1,20 @@
+name: scripps_pier
+cam_url: null  # TODO: fill in HLS/RTSP URL after stream discovery
+calibration_method: pier_piling
+buoy_id: "201"  # CDIP 201 Scripps Nearshore (32.868N, -117.267W; ~0.5 km from pier)
+pier_geometry:
+  piling_spacing_m: 6.0
+  piling_diameter_m: 1.0
+  deck_elev_m_mllw: 7.0
+calibration:
+  homography: null
+  keyframe_path: null
+  piling_strip_x: null
+  piling_strip_y_range: null
+  m_per_px_vertical: null
+  annotated_pixel_points: null
+  world_points_m: null
+notes: |
+  Co-located with CDIP 073 (Scripps Nearshore). Pier geometry baseline from
+  README; verify against SIO Facilities engineering docs before publishing
+  validation results.
