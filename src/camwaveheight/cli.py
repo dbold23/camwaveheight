@@ -84,6 +84,8 @@ def set_roi(site_path: str, x: int, y: int, w: int, h: int) -> None:
 @click.option("--cache-eta", type=click.Path(), default="data/eta/eta_px.parquet")
 @click.option("--cdip-cache", type=click.Path(), default="data/cdip")
 @click.option("--train-frac", type=float, default=0.7)
+@click.option("--window-min", type=float, default=17.0, help="Rolling-Hs window in minutes.")
+@click.option("--step-min", type=float, default=5.0, help="Rolling-Hs step in minutes.")
 @click.option("--tag", default="v1")
 def run_pipeline(
     site_path: str,
@@ -91,12 +93,23 @@ def run_pipeline(
     cache_eta: str,
     cdip_cache: str,
     train_frac: float,
+    window_min: float,
+    step_min: float,
     tag: str,
 ) -> None:
     """End-to-end: extract η_px → rolling Hs → fit to CDIP 201 → plots."""
     from camwaveheight.pipeline import run_pipeline as _run
 
-    _run(site_path, out_root, cache_eta, cdip_cache, train_frac, tag)
+    _run(
+        site_path,
+        out_root=out_root,
+        cache_eta=cache_eta,
+        cdip_cache=cdip_cache,
+        train_frac=train_frac,
+        tag=tag,
+        window_sec=int(window_min * 60),
+        step_sec=int(step_min * 60),
+    )
 
 
 @main.command("record")

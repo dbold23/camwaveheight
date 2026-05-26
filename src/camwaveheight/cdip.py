@@ -30,7 +30,12 @@ DEFAULT_VARS = ("waveHs", "waveTp", "waveTa", "waveDp")
 
 
 def _iso(t: str | datetime | pd.Timestamp) -> str:
-    return pd.Timestamp(t, tz="UTC").strftime("%Y-%m-%dT%H:%M:%SZ")
+    ts = pd.Timestamp(t)
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    else:
+        ts = ts.tz_convert("UTC")
+    return ts.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def fetch_cdip_params(
@@ -81,6 +86,9 @@ def fetch_cdip_params(
     log.info("fetching %s station=%s %s..%s", WAVE_DATASET, stn, start_iso, end_iso)
     log.debug("url=%s", url)
     resp = requests.get(url, timeout=60)
+    if resp.status_code == 404 and "Your query produced no matching results" in resp.text:
+        log.warning("no rows for %s in [%s, %s]", stn, start_iso, end_iso)
+        return pd.DataFrame(columns=list(variables)).rename_axis("time")
     resp.raise_for_status()
     # ERDDAP CSV has a units row after the header — skip it.
     df = pd.read_csv(io.StringIO(resp.text), skiprows=[1])
