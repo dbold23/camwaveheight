@@ -40,3 +40,11 @@ reports/*.pdf
 !reports/.gitkeep
 outputs/
 runs/
+
+# Tuning artifacts (only keep final ones)
+calibration_data/keyframe_lajolla.png
+calibration_data/keyframe_osprey.png
+calibration_data/keyframe_test.png
+calibration_data/*_alt*.png
+reports/detect_preview*.png
+reports/detect_v[0-3]*.png

@@ -15,22 +15,37 @@ class PierGeometry(BaseModel):
     deck_elev_m_mllw: float | None = Field(None, description="Deck elevation above MLLW.")
 
 
-class Calibration(BaseModel):
-    """Filled in by `calibration.py` after annotation."""
+class WaveROI(BaseModel):
+    """Image-space region of interest for the surf zone."""
 
-    homography: list[list[float]] | None = None  # 3x3 row-major
+    x: int  # left
+    y: int  # top
+    w: int
+    h: int
+
+
+class Calibration(BaseModel):
+    """Filled in by calibration step. Regression-mode is the default for cams
+    with no metric reference in frame: we fit pixel-Hs to CDIP-Hs and store
+    the linear coefficients here."""
+
     keyframe_path: str | None = None
-    piling_strip_x: int | None = None  # column index of the selected piling
-    piling_strip_y_range: tuple[int, int] | None = None  # vertical bounds of strip
-    m_per_px_vertical: float | None = None
-    annotated_pixel_points: list[tuple[float, float]] | None = None
-    world_points_m: list[tuple[float, float]] | None = None
+    wave_roi: WaveROI | None = None
+    # Regression-mode coefficients: meter_hs = scale * pixel_hs + bias
+    scale_m_per_px: float | None = None
+    bias_m: float | None = None
+    fit_rmse_m: float | None = None
+    fit_n_samples: int | None = None
+    fit_train_window: tuple[str, str] | None = None  # ISO UTC start, end
 
 
 class Site(BaseModel):
     name: str
     cam_url: str | None = None  # may be None if using local-only recordings
-    calibration_method: Literal["pier_piling", "stationary_ref", "surfer_pose"] = "pier_piling"
+    cam_referer: str | None = None  # HTTP Referer header for CDN-protected streams
+    calibration_method: Literal["pier_piling", "stationary_ref", "surfer_pose", "regression"] = (
+        "regression"
+    )
     buoy_id: str = Field(..., description="CDIP station number, e.g. '073'.")
     pier_geometry: PierGeometry | None = None
     calibration: Calibration = Calibration()

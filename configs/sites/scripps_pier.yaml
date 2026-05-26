@@ -1,20 +1,27 @@
 name: scripps_pier
-cam_url: null  # TODO: fill in HLS/RTSP URL after stream discovery
-calibration_method: pier_piling
-buoy_id: "201"  # CDIP 201 Scripps Nearshore (32.868N, -117.267W; ~0.5 km from pier)
+cam_url: https://hls.cdn-surfline.com/oregon/wc-scripps/playlist.m3u8
+cam_referer: https://www.surfline.com/
+calibration_method: regression
+buoy_id: '201'
 pier_geometry:
   piling_spacing_m: 6.0
   piling_diameter_m: 1.0
   deck_elev_m_mllw: 7.0
 calibration:
-  homography: null
-  keyframe_path: null
-  piling_strip_x: null
-  piling_strip_y_range: null
-  m_per_px_vertical: null
-  annotated_pixel_points: null
-  world_points_m: null
-notes: |
-  Co-located with CDIP 073 (Scripps Nearshore). Pier geometry baseline from
-  README; verify against SIO Facilities engineering docs before publishing
-  validation results.
+  keyframe_path: calibration_data/keyframe.png
+  wave_roi:
+    x: 100
+    y: 420
+    w: 1080
+    h: 280
+  scale_m_per_px: null
+  bias_m: null
+  fit_rmse_m: null
+  fit_n_samples: null
+  fit_train_window: null
+notes: "Co-located with CDIP 201 (Scripps Nearshore). Pier geometry baseline from\n\
+  README; verify against SIO Facilities engineering docs before publishing\nvalidation\
+  \ results.\n\nCam ToS note: the SIO piercam page publicly embeds the Surfline-routed\
+  \ feed\nfor this pier \u2014 same physical camera as in the surfline.com/surf-report/scripps\n\
+  page. Use is research / non-commercial only: raw video stays local\n(gitignored);\
+  \ only derived statistics and reports are published.\n"

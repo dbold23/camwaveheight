@@ -8,8 +8,8 @@ from pathlib import Path
 import click
 import pandas as pd
 
-from camwaveheight import cdip
-from camwaveheight.site import Site
+from camwaveheight import cdip, ingest
+from camwaveheight.site import Site, WaveROI
 
 
 @click.group()
@@ -62,6 +62,65 @@ def buoy_plot(site_path: str, start: str, end: str, out_path: str) -> None:
     fig.tight_layout()
     fig.savefig(out_path, dpi=120)
     click.echo(f"wrote {out_path}  ({len(df)} samples)")
+
+
+@main.command("set-roi")
+@click.option("--site", "site_path", type=click.Path(exists=True), required=True)
+@click.option("--x", type=int, required=True)
+@click.option("--y", type=int, required=True)
+@click.option("--w", type=int, required=True)
+@click.option("--h", type=int, required=True)
+def set_roi(site_path: str, x: int, y: int, w: int, h: int) -> None:
+    """Write the surf-zone ROI into the site YAML."""
+    site = Site.load(site_path)
+    site.calibration.wave_roi = WaveROI(x=x, y=y, w=w, h=h)
+    site.dump(site_path)
+    click.echo(f"{site.name}: ROI set to x={x} y={y} w={w} h={h}")
+
+
+@main.command("run")
+@click.option("--site", "site_path", type=click.Path(exists=True), required=True)
+@click.option("--out-root", type=click.Path(), default="data/raw")
+@click.option("--cache-eta", type=click.Path(), default="data/eta/eta_px.parquet")
+@click.option("--cdip-cache", type=click.Path(), default="data/cdip")
+@click.option("--train-frac", type=float, default=0.7)
+@click.option("--tag", default="v1")
+def run_pipeline(
+    site_path: str,
+    out_root: str,
+    cache_eta: str,
+    cdip_cache: str,
+    train_frac: float,
+    tag: str,
+) -> None:
+    """End-to-end: extract η_px → rolling Hs → fit to CDIP 201 → plots."""
+    from camwaveheight.pipeline import run_pipeline as _run
+
+    _run(site_path, out_root, cache_eta, cdip_cache, train_frac, tag)
+
+
+@main.command("record")
+@click.option("--site", "site_path", type=click.Path(exists=True), required=True)
+@click.option("--hours", type=float, default=None, help="Stop after N hours. Omit to run until killed.")
+@click.option("--segment-min", type=int, default=10, help="Segment length in minutes.")
+@click.option("--out-root", type=click.Path(), default="data/raw")
+def record_cmd(site_path: str, hours: float | None, segment_min: int, out_root: str) -> None:
+    """Record a site's HLS stream into segmented MP4s with UTC-timestamped filenames."""
+    site = Site.load(site_path)
+    if not site.cam_url:
+        raise click.ClickException(f"{site.name}: cam_url is not set in {site_path}")
+    duration = int(hours * 3600) if hours else None
+    click.echo(f"recording {site.name} from {site.cam_url}")
+    click.echo(f"  out_root={out_root}  segment={segment_min}min  duration={hours}h")
+    rc = ingest.record(
+        url=site.cam_url,
+        site_name=site.name,
+        out_root=out_root,
+        segment_sec=segment_min * 60,
+        referer=site.cam_referer,
+        duration_sec=duration,
+    )
+    click.echo(f"ffmpeg exited rc={rc}")
 
 
 if __name__ == "__main__":
