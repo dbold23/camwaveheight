@@ -24,6 +24,28 @@ from camwaveheight.site import Site
 log = logging.getLogger(__name__)
 
 
+def _save_cam_only(hs_df: pd.DataFrame, tag: str, out_dir: str | Path = "reports") -> Path:
+    """Cam-only Hs_px / Tp diagnostic — runs before buoy data is available."""
+    import matplotlib.pyplot as plt
+
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = out_dir / f"cam_only_{tag}.png"
+    fig, axes = plt.subplots(2, 1, figsize=(11, 5), sharex=True)
+    axes[0].plot(hs_df.index, hs_df["hs_px_4std"], ".-", label="Hs_px (4·std)")
+    axes[0].plot(hs_df.index, hs_df["hs_px_zc"], ".-", color="C2", alpha=0.6, label="Hs_px (zero-cross)")
+    axes[0].set_ylabel("Hs (pixels)")
+    axes[0].legend()
+    axes[0].set_title(f"cam-only diagnostic — {tag} (no CDIP overlap yet)")
+    axes[1].plot(hs_df.index, hs_df["tp_s"], ".-", color="C1")
+    axes[1].set_ylabel("Tp (s)")
+    axes[1].set_xlabel("UTC")
+    fig.tight_layout()
+    fig.savefig(path, dpi=120)
+    plt.close(fig)
+    return path
+
+
 def run_pipeline(
     site_path: str,
     out_root: str = "data/raw",
@@ -64,16 +86,41 @@ def run_pipeline(
         raise RuntimeError("rolling_hs produced no windows — need at least window_sec of footage")
     log.info("rolling Hs: %d windows", len(hs_df))
 
-    t0 = hs_df.index.min().floor("h")
-    t1 = hs_df.index.max().ceil("h")
+    # Widen the buoy query by ±2h so even short cam spans pair against multiple
+    # CDIP samples (CDIP is 30-min cadence).
+    t0 = hs_df.index.min().floor("h") - pd.Timedelta(hours=2)
+    t1 = hs_df.index.max().ceil("h") + pd.Timedelta(hours=2)
     buoy = cdip.fetch_cdip_params(site.buoy_id, t0, t1, cache_dir=cdip_cache)
+
+    # Cam-only diagnostic plot — always produced, useful even before CDIP catches up.
+    cam_only_path = _save_cam_only(hs_df, tag)
+
+    if buoy.empty:
+        log.warning(
+            "no CDIP %s data overlap; saved cam-only diagnostic to %s. "
+            "CDIP typically lags realtime by ~6-12 h; re-run later.",
+            site.buoy_id, cam_only_path,
+        )
+        return {
+            "fit": None,
+            "plots": {"cam_only": str(cam_only_path)},
+            "n_paired": 0,
+            "summary": None,
+        }
 
     paired = validate.align_to_buoy(hs_df, buoy, cam_col="hs_px_4std")
     if len(paired) < 6:
-        raise RuntimeError(
-            f"only {len(paired)} paired samples after alignment; need ≥6. "
-            f"Wait for more footage or relax window/step."
+        log.warning(
+            "only %d paired samples; saved cam-only diagnostic. "
+            "Re-run once more footage and buoy overlap accumulate.",
+            len(paired),
         )
+        return {
+            "fit": None,
+            "plots": {"cam_only": str(cam_only_path)},
+            "n_paired": len(paired),
+            "summary": None,
+        }
 
     fit, paired = validate.fit_train_test(paired, train_frac=train_frac)
     plots = validate.plot_validation(paired, fit, tag=tag)

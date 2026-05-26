@@ -1,5 +1,15 @@
 # CamWaveHeight — Build Plan
 
+## STATUS NOTE (2026-05-25)
+Pivoted off pier-piling calibration. The actual Scripps Pier cam (Surfline-routed,
+publicly embedded on the SIO piercam page) is pier-mounted looking outward at
+open ocean — no pilings visible. Replaced with **regression calibration**:
+extract pixel-space Hs from a fixed surf-zone ROI and regress against CDIP 201
+Hs to learn the meter scale. Closer to what Surfline themselves likely do
+in production, since they can't bake site-specific homographies into every cam.
+
+
+
 ## Phase 1 MVP — Scripps Pier vs CDIP 073
 
 Build order chosen to (a) start cam data accumulating ASAP and (b) test each module in isolation before wiring.

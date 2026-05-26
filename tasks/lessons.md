@@ -4,6 +4,10 @@
 - **Always view a keyframe before designing the calibration approach.** The README assumed pier pilings would be visible in the Scripps cam; in reality the cam is mounted on the pier looking outward at open ocean — no pilings in frame. Pulled a single-frame snapshot from the HLS stream first; would have wasted hours building a homography module that had no input to calibrate against.
 - **Surfline-style cams use regression calibration, not metric homography.** When a cam has no in-frame metric reference, fit pixel-space Hs against CDIP buoy Hs via linear regression on a training window. It's the only path that generalizes across a cam network. Document training window vs held-out window clearly.
 
+## CDIP timing
+- **CDIP ERDDAP lags realtime by ~6-12 hours.** Querying `wave_agg` for "right now" returns 404 ("No data matches time>= ... source max=..."). Plan workflows so the cam recording overlaps a buoy-data window that's already published, not "now."
+- **404 ERDDAP responses with "Your query produced no matching results" are normal** — treat as empty, not as an error. Handled in `cdip.fetch_cdip_params`.
+
 ## CDIP / ERDDAP
 - **Don't trust placeholder IDs in spec docs.** README claimed Scripps Nearshore was CDIP 073; actual is 201. Always verify station IDs against the live ERDDAP catalog before wiring them into code or configs. Query: `https://erddap.cdip.ucsd.edu/erddap/tabledap/wave_agg.csv?station_id,metaStationName,latitude,longitude&distinct()`
 - **CDIP ERDDAP uses one aggregated dataset, not per-station ones.** All wave parameters live in `wave_agg` with a `station_id` filter. There is no `<stn>p1_historic` table-level dataset.
