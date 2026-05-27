@@ -70,7 +70,7 @@ def run_pipeline(
         roi,
         out_root=out_root,
         cache_path=cache_eta,
-        sample_every_n_frames=3,  # ~10 Hz from 30 fps
+        sample_every_n_frames=6,  # 5 Hz from 30 fps; plenty for 6-20s wave periods
     )
     if eta_df.empty:
         raise RuntimeError("no eta samples extracted — check recording and ROI")

@@ -48,6 +48,9 @@ def align_to_buoy(
     """asof-merge cam Hs into buoy timestamps (buoy is at 30-min cadence)."""
     cam = cam_hs[[cam_col]].rename(columns={cam_col: "hs_px"}).sort_index()
     buoy = buoy[["waveHs", "waveTp"]].sort_index()
+    # Normalize datetime precision — CDIP comes back as us, cam stats are ns.
+    cam.index = pd.to_datetime(cam.index, utc=True).as_unit("ns")
+    buoy.index = pd.to_datetime(buoy.index, utc=True).as_unit("ns")
     out = pd.merge_asof(
         buoy,
         cam,
