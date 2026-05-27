@@ -21,15 +21,26 @@ from scipy.signal import butter, sosfiltfilt, welch
 log = logging.getLogger(__name__)
 
 
-def _resample_uniform(eta: pd.Series, fs_hz: float) -> pd.Series:
-    """Interpolate eta(t) onto a uniform fs_hz grid; short gaps filled linearly."""
+def _resample_uniform(
+    eta: pd.Series, fs_hz: float, max_gap_sec: float = 10.0
+) -> pd.Series:
+    """Interpolate eta(t) onto a uniform fs_hz grid; only gaps ≤ max_gap_sec get filled.
+
+    Critically, gaps larger than max_gap_sec (e.g. multi-hour night blackouts)
+    remain NaN so downstream rolling-window coverage checks see them as missing.
+    """
     eta = eta.dropna()
     if eta.empty:
         return eta
     t0, t1 = eta.index.min(), eta.index.max()
     dt = pd.Timedelta(seconds=1 / fs_hz)
     grid = pd.date_range(t0, t1, freq=dt)
-    return eta.reindex(eta.index.union(grid)).interpolate("time").reindex(grid)
+    interp_limit = max(1, int(max_gap_sec * fs_hz))
+    return (
+        eta.reindex(eta.index.union(grid))
+        .interpolate("time", limit=interp_limit, limit_direction="both")
+        .reindex(grid)
+    )
 
 
 def detrend_lowpass(eta_px: pd.Series, fs_hz: float, lowpass_sec: float = 30.0) -> pd.Series:

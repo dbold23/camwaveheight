@@ -36,10 +36,12 @@ from camwaveheight.site import WaveROI
 
 log = logging.getLogger(__name__)
 
-DEFAULT_FOAM_V_MIN = 170  # HSV value channel threshold for foam
-DEFAULT_FOAM_S_MAX = 90   # foam is desaturated; reject saturated bright pixels (sun, sky color)
-DEFAULT_MIN_FOAM_PX = 15  # minimum foam pixels in a row to count it as "wave detected"
+DEFAULT_FOAM_V_MIN = 180  # floor for absolute V threshold (foam never dimmer than this)
+DEFAULT_FOAM_S_MAX = 40   # foam is achromatic; sun glitter is more saturated. Strict.
+DEFAULT_MIN_FOAM_PX = 25  # minimum foam pixels in a row to count it as "wave detected"
 DEFAULT_VERTICAL_COHERENCE = 2  # row must have a foam-rich neighbor to count
+DEFAULT_ADAPTIVE_K = 2.0  # adaptive_thresh = mean(V) + k * std(V); rejects "bright outliers"
+DEFAULT_DARK_MEAN_V = 70   # ROI mean V below this = cam can't see waves; frame is "dark"
 
 
 @dataclass
@@ -56,6 +58,7 @@ def detect_eta_in_frame(
     foam_s_max: int = DEFAULT_FOAM_S_MAX,
     min_foam_px: int = DEFAULT_MIN_FOAM_PX,
     vertical_coherence: int = DEFAULT_VERTICAL_COHERENCE,
+    adaptive_k: float = DEFAULT_ADAPTIVE_K,
 ) -> tuple[float, int]:
     """Find the topmost row in `roi` of a vertically coherent foam band.
 
@@ -72,7 +75,14 @@ def detect_eta_in_frame(
     x0, y0, w, h = roi.x, roi.y, roi.w, roi.h
     crop = frame[y0 : y0 + h, x0 : x0 + w]
     hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    foam_mask = (hsv[:, :, 2] >= foam_v_min) & (hsv[:, :, 1] <= foam_s_max)
+    V, S = hsv[:, :, 2], hsv[:, :, 1]
+    # Night filter: if the ROI is too dark, cam is functionally blind.
+    if V.mean() < DEFAULT_DARK_MEAN_V:
+        return float("nan"), 0
+    # Adaptive V threshold per frame, floored at the absolute foam_v_min.
+    # `mean + k*std` keeps only "outlier-bright" pixels — works across lighting.
+    adaptive_thresh = max(int(V.mean() + adaptive_k * V.std()), foam_v_min)
+    foam_mask = (V >= adaptive_thresh) & (S <= foam_s_max)
     per_row_count = foam_mask.sum(axis=1)
     foam_total = int(foam_mask.sum())
 
@@ -152,6 +162,111 @@ def extract_eta_series(
         100 * df["eta_px"].notna().mean(),
     )
     return df
+
+
+def extract_motion_energy_series(
+    video_path: str | Path,
+    roi: WaveROI,
+    sample_every_n_frames: int = 6,
+) -> pd.DataFrame:
+    """Per-frame "wave motion energy" = mean(|I_t - I_{t-1}|) in the ROI.
+
+    Lighting-invariant: frame differencing cancels static lighting and slow
+    drift. The remaining signal is dominated by moving foam and water surface
+    deformation — both of which scale with wave activity.
+
+    Also returns ROI brightness mean (V channel) so night frames can be
+    masked downstream.
+    """
+    path = Path(video_path)
+    start = pd.Timestamp(segment_start_utc(path))
+    cap = cv2.VideoCapture(str(path))
+    if not cap.isOpened():
+        raise RuntimeError(f"cannot open {path}")
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+
+    prev_gray = None
+    rows = []
+    frame_idx = 0
+    while True:
+        ok, frame = cap.read()
+        if not ok:
+            break
+        if frame_idx % sample_every_n_frames == 0:
+            crop = frame[roi.y : roi.y + roi.h, roi.x : roi.x + roi.w]
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY).astype(np.int16)
+            v_mean = float(gray.mean())
+            if prev_gray is not None:
+                motion = float(np.abs(gray - prev_gray).mean())
+            else:
+                motion = float("nan")
+            rows.append({
+                "t": start + pd.Timedelta(seconds=frame_idx / fps),
+                "motion": motion,
+                "v_mean": v_mean,
+            })
+            prev_gray = gray
+        frame_idx += 1
+    cap.release()
+
+    df = pd.DataFrame(rows).set_index("t")
+    df.index = pd.to_datetime(df.index, utc=True)
+    # Mask night frames
+    df.loc[df["v_mean"] < DEFAULT_DARK_MEAN_V, "motion"] = float("nan")
+    log.info(
+        "%s: %d frames; motion mean=%.2f (non-night: %.2f)",
+        path.name, len(df), df["motion"].mean(), df.dropna()["motion"].mean(),
+    )
+    return df
+
+
+def extract_motion_for_site(
+    site_name: str,
+    roi: WaveROI,
+    out_root: str | Path = "data/raw",
+    cache_path: str | Path | None = "data/eta/motion.parquet",
+    sample_every_n_frames: int = 6,
+) -> pd.DataFrame:
+    """Run motion extraction over every segment for a site."""
+    from camwaveheight.ingest import list_segments
+
+    segs = list_segments(site_name, out_root=out_root)
+    if not segs:
+        raise FileNotFoundError(f"no segments under {out_root}/{site_name}")
+
+    if cache_path is not None:
+        cache_path = Path(cache_path)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        existing_t: set[pd.Timestamp] = set()
+        if cache_path.exists():
+            cached = pd.read_parquet(cache_path)
+            existing_t = set(cached.index.floor("min"))
+        else:
+            cached = pd.DataFrame()
+    else:
+        cached = pd.DataFrame()
+        existing_t = set()
+
+    new_frames: list[pd.DataFrame] = []
+    for seg in segs:
+        t0 = pd.Timestamp(segment_start_utc(seg)).floor("min")
+        if t0 in existing_t:
+            continue
+        try:
+            df = extract_motion_energy_series(seg, roi, sample_every_n_frames)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("skipping %s: %s", seg.name, exc)
+            continue
+        new_frames.append(df)
+
+    if not new_frames and cached.empty:
+        return cached
+    combined = pd.concat([cached, *new_frames]).sort_index()
+    combined = combined[~combined.index.duplicated(keep="last")]
+    if cache_path is not None:
+        combined.to_parquet(cache_path)
+        log.info("wrote %s (%d rows)", cache_path, len(combined))
+    return combined
 
 
 def extract_eta_for_site(

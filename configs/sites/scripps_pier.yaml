@@ -14,11 +14,13 @@ calibration:
     y: 420
     w: 1080
     h: 280
-  scale_m_per_px: null
-  bias_m: null
-  fit_rmse_m: null
-  fit_n_samples: null
-  fit_train_window: null
+  scale_m_per_px: 0.0009556071634239322
+  bias_m: 0.7629120390339478
+  fit_rmse_m: 0.11836479778992451
+  fit_n_samples: 49
+  fit_train_window:
+  - '2026-05-26T03:00:00+00:00'
+  - '2026-05-26T19:30:00+00:00'
 notes: "Co-located with CDIP 201 (Scripps Nearshore). Pier geometry baseline from\n\
   README; verify against SIO Facilities engineering docs before publishing\nvalidation\
   \ results.\n\nCam ToS note: the SIO piercam page publicly embeds the Surfline-routed\
