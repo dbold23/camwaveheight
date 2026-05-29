@@ -137,6 +137,70 @@ def record(
     return rc
 
 
+def record_resilient(
+    url: str,
+    site_name: str,
+    out_root: str | Path = DEFAULT_OUT_ROOT,
+    segment_sec: int = DEFAULT_SEGMENT_SEC,
+    referer: str | None = None,
+    total_duration_sec: int | None = None,
+    max_backoff_sec: int = 60,
+) -> None:
+    """Supervisor loop: keep recording across ffmpeg deaths until the budget elapses.
+
+    The single-shot `record()` exits whenever ffmpeg does — e.g. the transient
+    playlist 404 that ended the first 25 h run. For multi-day capture we wrap it
+    in a restart loop with exponential backoff. Each restart recomputes the day
+    directory, so footage stays organized by UTC date.
+
+    Args:
+        total_duration_sec: overall wall-clock budget; None = run until killed.
+        max_backoff_sec: cap on the restart delay after repeated quick failures.
+    """
+    import time
+
+    start = time.monotonic()
+    attempt = 0
+    consecutive_fast_fails = 0
+    while True:
+        if total_duration_sec is not None:
+            remaining = total_duration_sec - (time.monotonic() - start)
+            if remaining <= 5:
+                log.info("supervisor: budget exhausted, stopping")
+                break
+        else:
+            remaining = None
+
+        attempt += 1
+        seg_start = time.monotonic()
+        log.info("supervisor: starting ffmpeg (attempt %d, remaining=%ss)",
+                 attempt, int(remaining) if remaining else "inf")
+        rc = record(
+            url=url,
+            site_name=site_name,
+            out_root=out_root,
+            segment_sec=segment_sec,
+            referer=referer,
+            duration_sec=int(remaining) if remaining else None,
+        )
+        ran_for = time.monotonic() - seg_start
+
+        # Clean stop on SIGINT-driven exit when the budget was met.
+        if total_duration_sec is not None and (time.monotonic() - start) >= total_duration_sec - 5:
+            break
+
+        # Backoff: if ffmpeg died quickly, the stream is likely down — back off
+        # more each time. If it ran a long time, reset the backoff.
+        if ran_for < 30:
+            consecutive_fast_fails += 1
+        else:
+            consecutive_fast_fails = 0
+        backoff = min(2 ** consecutive_fast_fails, max_backoff_sec)
+        log.warning("supervisor: ffmpeg exited rc=%d after %.0fs; restarting in %ds",
+                    rc, ran_for, backoff)
+        time.sleep(backoff)
+
+
 def list_segments(site_name: str, out_root: str | Path = DEFAULT_OUT_ROOT) -> list[Path]:
     """All recorded segments for a site, sorted by UTC start."""
     root = Path(out_root) / site_name
