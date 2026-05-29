@@ -1,5 +1,34 @@
 # Progress
 
+## ACTIVE (2026-05-28): widening the validation
+
+Phase 1 goal is met (below), but on a narrow Hs band (0.67-0.99 m over 24h).
+CDIP 201's natural 21-day range is 0.40-1.54 m, and a swell is running now
+(1.54 m on 5/27, 1.09 m on 5/28). To prove the fit generalizes:
+
+- **Resilient multi-day recorder launched** (`cwh record --resilient`, 120h budget),
+  background task `b0788rpmz`. Auto-restarts ffmpeg on death (the 25h run died
+  on a transient 404 right before the 5/27 peak — this prevents that).
+- New footage accumulates under `data/raw/scripps_pier/` and the pipeline is
+  idempotent (per-segment caching), so re-running `cwh run` later just extends
+  the dataset.
+
+**Next action (after ~2-4 days of footage):**
+```bash
+cd "<repo root>"
+# re-extract motion energy over all segments (old + new) and re-validate
+rm -f data/eta/motion.parquet   # force full re-extract; or leave to extend
+.venv/bin/python -c "from camwaveheight.site import Site; from camwaveheight.wave_detect import extract_motion_for_site; s=Site.load('configs/sites/scripps_pier.yaml'); extract_motion_for_site(s.name, s.calibration.wave_roi)"
+# widen the CDIP fetch window in scripts/final_validation.py to cover all days, then:
+.venv/bin/python scripts/final_validation.py
+```
+Watch: does r=0.44 hold or improve across a 0.5-1.5 m range? Does the
+sequential-split RMSE (15.8 cm) tighten with more / wider data?
+
+Optional polish noted earlier: 2 Hz sampling has far better raw SNR than the
+current 5 Hz (wave/noise power 3.28 vs 0.21) — worth testing whether it lifts
+the final Hs correlation when we re-extract.
+
 ## Phase 1 GOAL MET (2026-05-26)
 
 **Goal:** `/goal Phase 1 MVP complete — RMSE on cam-derived Hs ≤ 25 cm vs CDIP 201 over a 24h window at Scripps Pier`
