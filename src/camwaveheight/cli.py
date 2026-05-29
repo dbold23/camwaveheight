@@ -117,23 +117,39 @@ def run_pipeline(
 @click.option("--hours", type=float, default=None, help="Stop after N hours. Omit to run until killed.")
 @click.option("--segment-min", type=int, default=10, help="Segment length in minutes.")
 @click.option("--out-root", type=click.Path(), default="data/raw")
-def record_cmd(site_path: str, hours: float | None, segment_min: int, out_root: str) -> None:
+@click.option("--resilient/--single", default=True,
+              help="Resilient mode auto-restarts ffmpeg on death (for multi-day capture).")
+def record_cmd(
+    site_path: str, hours: float | None, segment_min: int, out_root: str, resilient: bool
+) -> None:
     """Record a site's HLS stream into segmented MP4s with UTC-timestamped filenames."""
     site = Site.load(site_path)
     if not site.cam_url:
         raise click.ClickException(f"{site.name}: cam_url is not set in {site_path}")
     duration = int(hours * 3600) if hours else None
-    click.echo(f"recording {site.name} from {site.cam_url}")
+    mode = "resilient (auto-restart)" if resilient else "single-shot"
+    click.echo(f"recording {site.name} from {site.cam_url}  [{mode}]")
     click.echo(f"  out_root={out_root}  segment={segment_min}min  duration={hours}h")
-    rc = ingest.record(
-        url=site.cam_url,
-        site_name=site.name,
-        out_root=out_root,
-        segment_sec=segment_min * 60,
-        referer=site.cam_referer,
-        duration_sec=duration,
-    )
-    click.echo(f"ffmpeg exited rc={rc}")
+    if resilient:
+        ingest.record_resilient(
+            url=site.cam_url,
+            site_name=site.name,
+            out_root=out_root,
+            segment_sec=segment_min * 60,
+            referer=site.cam_referer,
+            total_duration_sec=duration,
+        )
+        click.echo("recording supervisor stopped")
+    else:
+        rc = ingest.record(
+            url=site.cam_url,
+            site_name=site.name,
+            out_root=out_root,
+            segment_sec=segment_min * 60,
+            referer=site.cam_referer,
+            duration_sec=duration,
+        )
+        click.echo(f"ffmpeg exited rc={rc}")
 
 
 if __name__ == "__main__":
