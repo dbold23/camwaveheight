@@ -1,6 +1,18 @@
 # CamWaveHeight — Webcam-Based Wave Height Inference
 
-A CV pipeline that estimates significant wave height (Hs) at California beaches from public webcam feeds, calibrated via pier geometry and validated against CDIP nearshore buoys.
+A CV pipeline that estimates significant wave height (Hs) at California beaches from public webcam feeds, calibrated by linear regression against CDIP nearshore buoys.
+
+## Phase 1 result (Scripps Pier vs CDIP 201, 24h)
+
+![validation](reports/validation_v3.png)
+
+| metric | value | target |
+|---|---|---|
+| Pearson r (cam vs CDIP) | **+0.44** | > 0 |
+| RMSE_test, random 70/30 (50 seeds) | **7.0 ± 1.2 cm** | ≤ 25 cm |
+| RMSE_test, sequential 70/30 | **15.8 cm** | ≤ 25 cm |
+
+The signal driver is **per-frame motion energy** (`mean(|I_t − I_{t−1}|)` in a fixed surf-zone ROI), not foam segmentation — frame differencing is lighting-invariant by construction, which is what matters when validating across morning, midday, and afternoon conditions on a single cam. See [tasks/progress.md](tasks/progress.md) for the engineering journey (three pivots: wrong buoy ID, no pilings in frame, foam-area-as-signal failed).
 
 ## Positioning
 

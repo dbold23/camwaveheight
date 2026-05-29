@@ -1,0 +1,23 @@
+{
+  "metric": "mean",
+  "n_paired": 26,
+  "correlation_r": 0.4370941574169659,
+  "fit_all_scale": 0.008040247576545057,
+  "fit_all_bias": 0.7650436927332879,
+  "rmse_all_m": 0.06358324320358523,
+  "random_split": {
+    "rmse_test_mean": 0.07038137211402408,
+    "rmse_test_median": 0.06802787123335932,
+    "rmse_test_std": 0.011731155616484785,
+    "slope_mean": 0.007430918717797206,
+    "slope_median": 0.007771719180076801
+  },
+  "sequential_split": {
+    "rmse_test_m": 0.15823526593411008,
+    "n_train": 18,
+    "n_test": 8
+  },
+  "target_rmse_m": 0.25,
+  "goal_met_random": true,
+  "goal_met_sequential": true
+}
