@@ -48,3 +48,7 @@ calibration_data/keyframe_test.png
 calibration_data/*_alt*.png
 reports/detect_preview*.png
 reports/detect_v[0-3]*.png
+
+# Large intermediate demo render (keep only h264 + gif)
+reports/overlay_demo.mp4
+reports/overlay_frame_check.png

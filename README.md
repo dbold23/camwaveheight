@@ -2,6 +2,12 @@
 
 A CV pipeline that estimates significant wave height (Hs) at California beaches from public webcam feeds, calibrated by linear regression against CDIP nearshore buoys.
 
+## The measurement, in action
+
+![overlay demo](reports/overlay_demo.gif)
+
+Surf-zone ROI (yellow), inter-frame **motion energy** as a red heat overlay (breaking waves light up), and the live motion-energy trace scrolling below — the wave-by-wave oscillation this trace captures is what gets aggregated into Hs. Full clip: [reports/overlay_demo_h264.mp4](reports/overlay_demo_h264.mp4).
+
 ## Phase 1 result (Scripps Pier vs CDIP 201, 24h)
 
 ![validation](reports/validation_v3.png)
