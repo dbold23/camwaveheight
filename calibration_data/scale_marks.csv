@@ -1,0 +1,2 @@
+label,clip,sec,x1,y1,x2,y2,pixel_len,length_m,px_per_m,mean_row,note
+board_711,data/raw/scripps_pier/20260529/seg-20260529T030130Z.mp4,431.0,928.5,708.0,999.2,711.6,70.8,1.9558,36.2,709.8,"board broadside/parallel to shore, near-edge horizontal scale"
