@@ -7,7 +7,7 @@ CDIP 201's natural 21-day range is 0.40-1.54 m, and a swell is running now
 (1.54 m on 5/27, 1.09 m on 5/28). To prove the fit generalizes:
 
 - **Resilient multi-day recorder launched** (`cwh record --resilient`, 120h budget),
-  background task `b0788rpmz`. Auto-restarts ffmpeg on death (the 25h run died
+  running in the background. Auto-restarts ffmpeg on death (the 25h run died
   on a transient 404 right before the 5/27 peak — this prevents that).
 - New footage accumulates under `data/raw/scripps_pier/` and the pipeline is
   idempotent (per-segment caching), so re-running `cwh run` later just extends
@@ -15,7 +15,7 @@ CDIP 201's natural 21-day range is 0.40-1.54 m, and a swell is running now
 
 **Next action (after ~2-4 days of footage):**
 ```bash
-cd "/Volumes/External Dive 2TB/projects/marine-cv/camwaveheight"
+cd "<repo root>"
 # re-extract motion energy over all segments (old + new) and re-validate
 rm -f data/eta/motion.parquet   # force full re-extract; or leave to extend
 .venv/bin/python -c "from camwaveheight.site import Site; from camwaveheight.wave_detect import extract_motion_for_site; s=Site.load('configs/sites/scripps_pier.yaml'); extract_motion_for_site(s.name, s.calibration.wave_roi)"
@@ -31,7 +31,7 @@ the final Hs correlation when we re-extract.
 
 ## Phase 1 GOAL MET (2026-05-26)
 
-**Goal:** `/goal Phase 1 MVP complete — RMSE on cam-derived Hs ≤ 25 cm vs CDIP 201 over a 24h window at Scripps Pier`
+**Goal:** Phase 1 MVP complete — RMSE on cam-derived Hs ≤ 25 cm vs CDIP 201 over a 24h window at Scripps Pier.
 
 **Result:**
 

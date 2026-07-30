@@ -25,7 +25,7 @@ toward the horizon they converge. The full projection below handles this exactly
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 import cv2
 import numpy as np

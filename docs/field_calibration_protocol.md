@@ -12,9 +12,9 @@ to put known objects at known places and log when/where.
 
 ## Gear
 - **A vertical ruler of known length.** Best: a painter's/survey pole (2–3 m)
-  with **high-contrast tape bands every 0.5 m**. Fallbacks: your surfboard
-  (known length) held upright; or **your own body** (we know your height — a
-  standing person is a vertical ruler).
+  with **high-contrast tape bands every 0.5 m**. Fallbacks: a surfboard of
+  known length held upright; or **a person of known standing height** — a
+  standing person is itself a vertical ruler.
 - **Phone** for (a) clock and (b) GPS pin at each spot.
 - Optional: a second person to hold the pole while you check the cam.
 
@@ -50,8 +50,8 @@ At each spot:
 1. Stand still, pole vertical, **15 s**.
 2. **Raise both arms / wave once** as a sync marker.
 3. Note **phone time** + **drop a GPS pin** (or read lat/lon).
-4. Stand a bit **left of center** in the frame — last time you were far bottom-right
-   near the railing; center-lower is cleaner.
+4. Stand a bit **left of center** in the frame — the far bottom-right, near the
+   railing, is cluttered; center-lower is cleaner.
 
 ## Also capture (free, high-value)
 - **The fixed railing post** bottom-right is a **PTZ sentinel** — if it ever
@@ -60,9 +60,9 @@ At each spot:
 - If it's a **good surf day**, footage with surfers gives us the *surfer-as-scale*
   cross-check (pose height as a moving ruler right where the waves are).
 
-## What to send me afterward
+## What to record for post-processing
 For each pose: **phone time**, **GPS lat/lon**, **pole length** (and where the
-bands are). I then:
+bands are). Post-processing then:
 1. Pull the exact frames, mark each pole top/base with `mark_scale.py` (vertical),
 2. Convert to GCPs, refit the geometry (now **over-determined**),
 3. **Validate** the mid-field scale (poles vs the horizon-only interpolation),

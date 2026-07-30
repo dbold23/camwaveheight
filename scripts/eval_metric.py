@@ -89,11 +89,13 @@ def main() -> None:
     A = np.vstack([x[:n_train], np.ones(n_train)]).T
     (a, b), *_ = np.linalg.lstsq(A, y[:n_train], rcond=None)
     pred = a * x + b
-    rmse_test = float(np.sqrt(np.mean((pred[n_train:] - y[n_train:]) ** 2)))
+    res = pred[n_train:] - y[n_train:]
+    y_te = y[n_train:]
+    rmse_test = float(np.sqrt(np.mean(res ** 2)))
     print(f"fit: y = {a:.6f}*x + {b:.4f}")
     print(f"RMSE train: {np.sqrt(np.mean((pred[:n_train]-y[:n_train])**2)):.3f} m")
     print(f"RMSE test:  {rmse_test:.3f} m  (target ≤ 0.25 m)")
-    print(f"r² test:    {1 - np.var(pred[n_train:]-y[n_train:])/np.var(y[n_train:]):.3f}")
+    print(f"r² test:    {1 - np.sum(res**2)/np.sum((y_te - y_te.mean())**2):.3f}")
 
     fig, ax = plt.subplots(2, 1, figsize=(11, 6), sharex=True)
     ax[0].plot(paired.index, paired["waveHs"], "o-", color="C0", label="CDIP 201")
