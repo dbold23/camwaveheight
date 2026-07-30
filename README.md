@@ -20,10 +20,6 @@ Surf-zone ROI (yellow), inter-frame **motion energy** as a red heat overlay (bre
 
 The signal driver is **per-frame motion energy** (`mean(|I_t − I_{t−1}|)` in a fixed surf-zone ROI), not foam segmentation — frame differencing is lighting-invariant by construction, which is what matters when validating across morning, midday, and afternoon conditions on a single cam. See [tasks/progress.md](tasks/progress.md) for the engineering journey (three pivots: wrong buoy ID, no pilings in frame, foam-area-as-signal failed).
 
-## Positioning
-
-Surfline runs CV-driven wave-height inference across their cam network operationally. The exact method is closed. This project reverse-engineers the problem using public data, produces a quantitative validation against CDIP ground truth, and demonstrates an end-to-end pipeline relevant to their forecast operations team. Pitch in the cover letter as: *"a self-built validator that quantifies forecast accuracy at the beach scale."*
-
 ## System overview
 
 ```
@@ -89,7 +85,7 @@ Generalize to sites without a pier. Two scaling strategies:
 
 **A. Stationary reference at known height** — lifeguard towers, jetty markers, navigation buoys. Requires site-specific annotation but transfers the waterline-tracking approach.
 
-**B. Surfer-as-scale (your YOLOv8-pose wheelhouse)**
+**B. Surfer-as-scale (YOLOv8-pose)**
 - Run pose on surfers in the lineup
 - Use anatomical keypoint distances (e.g., shoulder-hip ~50 cm) as a moving scale ruler
 - Measure wave face height in pixels relative to surfer; convert
@@ -101,18 +97,18 @@ Build a `Site` config schema so each new beach adds a YAML file with `cam_url`, 
 
 - Run on 1–2 months of historical footage across 3–5 sites
 - Failure mode analysis: night, fog, glassy conditions, big surf where the piling is in white water, PTZ events
-- Compare cam-derived Hs against Surfline's published surf-height range for those days at those spots. Where do you disagree? Why? That's the most interesting finding for the application.
+- Compare cam-derived Hs against Surfline's published surf-height range for those days at those spots, and characterise where and why the two disagree.
 
 ## Phase 4 — Wave quality (target: 2 weeks, after Phase 3 is solid)
 
-Hs tells you *how big*. Quality tells you *how good*. Surfline already publishes human-rated quality ("Poor → Epic"); an automated, explainable version is more interesting to them than another height measurer. Build four components, expose them separately, then combine.
+Hs tells you *how big*. Quality tells you *how good*. Commercial forecasts publish human-rated quality ("Poor → Epic"); an automated, explainable version is the more useful contribution. Four components, exposed separately, then combined.
 
 **4a. Peel angle** (`quality/peel.py`)
 - Per-frame foam-line segmentation (white-pixel mask + morphological cleanup, or a small UNet)
 - Track foam-line lateral propagation across consecutive frames
 - Peel angle = angle between propagation vector and wave crest line
 - Aggregate per wave: median peel angle, with 30–45° flagged as ideal, near-0° as closeout, >60° as mushy
-- Background lit: search "peel angle remote sensing" / Holman & Stanley argus literature
+- Background literature: "peel angle remote sensing"; the Holman & Stanley Argus literature
 
 **4b. Make rate** (`quality/make_rate.py`) — *the novel piece*
 - Run YOLOv8-pose on lineup, persist tracks via ByteTrack or BoT-SORT
@@ -136,7 +132,7 @@ Hs tells you *how big*. Quality tells you *how good*. Surfline already publishes
 **Composite Spot Quality Index**
 - Weighted combination of peel-angle score × make-rate × texture-class × consistency
 - Tune weights against Surfline's published quality ratings (scrape historical via Wayback for a held-out validation set — ToS-clean since you're only using ratings, not cam imagery)
-- **Keep components visible.** A forecaster won't trust a single black-box score; they'll trust "make rate dropped to 22% as onshore wind kicked in at 9am." Build the dashboard accordingly.
+- **Keep components visible.** A forecaster won't trust a single black-box score; they'll trust "make rate dropped to 22% as onshore wind kicked in at 9am." The dashboard therefore exposes each component alongside the composite.
 
 **Phase 4 success criterion:** Composite SQI correlates ≥0.6 with Surfline's published quality ratings on a held-out month. Individual components are explainable to a non-ML forecaster.
 
@@ -177,7 +173,7 @@ camwaveheight/
 - Python 3.11, OpenCV, PyTorch (if UNet), NumPy/SciPy/Pandas
 - `ultralytics` for YOLOv8-pose
 - `segmentation-models-pytorch` if UNet waterline beats classical
-- `erddapy` + `xarray` for CDIP buoy data
+- `erddapy` + `requests` for CDIP buoy data
 - `streamlit` for the demo dashboard
 
 ## Watch out for
