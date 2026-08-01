@@ -1,5 +1,55 @@
 # Progress
 
+## DONE (2026-06-28): satellite data stream — Plan A implemented (P0–P1 verified)
+
+New `src/camwaveheight/satellite/` subpackage, sibling to the cam pipeline,
+mirroring the `cdip.py` fetch/cache conventions. Motion-energy Hs stays the
+system of record — nothing here writes the cam's regression coefficients.
+
+- **Schema** (`site.py`): added `GeoLocation`, `AOI`, `SatelliteProducts`,
+  `SatelliteConfig`; `Site` gains optional `location` / `aoi` / `satellite`.
+  Existing `scripps_pier.yaml` still validates (verified) and now carries
+  location (32.867, -117.257), AOI bbox + `configs/sites/aoi/scripps_pier_aoi.geojson`.
+- **`satellite/common.py`** — `iso_utc`, `cache_key` (same `:`-strip as cdip),
+  `bbox_from_site`, `site_lat_lon`, `coerce_utc_index`, `haversine_km`,
+  `load_from_cache_or`.
+- **`satellite/waves.py`** (cdip twin) — `fetch_cmems_wave_model` /
+  `fetch_cmems_wave_reanalysis` (VHM0/VTPK/VMDR → model_hs/tp/dp),
+  `fetch_altimeter_swh` (L3 SWH, haversine-filtered), `latest_model_hs`.
+  copernicusmarine imported lazily.
+- **`validate.py`** — shared `_metrics` (fit_train_test refactored onto it,
+  numerics unchanged — verified), plus `merge_source`, `align_three_way`,
+  `compare_sources`, `plot_three_way`. Two-way cam-vs-buoy path untouched.
+- **`satellite/environment.py`** — `fetch_sst` (no-auth NOAA CRW ERDDAP path
+  works; MUR gated on Earthdata), `fetch_wind`/`fetch_ocean_color` gated,
+  `build_env_panel`.
+- **`satellite/shoreline.py`** — CoastSat/GEE orchestration, `define_transects`,
+  AOI/transect geojson writer, `tidal_correction`; raises install/auth guidance
+  until the `sat-shoreline` extra is present (P3). Shares the
+  `transect_id`/`cross_shore_position_m` contract with the cam perception work.
+- **CLI** — `sat-waves`, `sat-validate`, `sat-env`, `sat-shoreline`,
+  `sat-quicklook` (lazy imports; missing deps/creds → clean ClickException).
+- **`pyproject.toml`** — `sat-waves` / `sat-shoreline` / `sat-env` / `sat-all`
+  extras. **`.gitignore`** — `.env`, `*.netrc`, `.copernicusmarine/`,
+  `configs/secrets*.yaml`.
+
+**Verification:** `tests/` (new) — `test_common.py`, `test_validate_threeway.py`,
+`test_waves_cache.py` (mocks copernicusmarine → tiny .nc → parquet, asserts cache
+reuse). `28 passed`. Full import graph + CLI registration + ruff all clean.
+Not verified live (no creds/extras installed): CMEMS subset, CRW ERDDAP fetch,
+CoastSat — these are P0/P2/P3 network paths exercised only via mocks here.
+
+**Next:** install `.[sat-waves]` + `copernicusmarine login`, then
+`cwh sat-waves --product model --start 2026-05-07 --end 2026-05-28` and
+`cwh sat-validate` (model-vs-CDIP RMSE < 0.3 m proves alignment/units). Changes
+are uncommitted in the working tree pending review.
+
+> ⚠️ Environment note: the **internal root disk is ~100% full** (228 GB container,
+> fluctuating 0–175 MB free). `/private/tmp` lives there, so shell output capture
+> intermittently fails. Work was routed to the external volume
+> (`TMPDIR=<scratch dir on a volume with space>`, `pip --no-cache-dir`).
+> Free space on the internal disk before heavy runs.
+
 ## ACTIVE (2026-05-28): widening the validation
 
 Phase 1 goal is met (below), but on a narrow Hs band (0.67-0.99 m over 24h).

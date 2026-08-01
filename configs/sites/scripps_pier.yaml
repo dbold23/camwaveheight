@@ -21,6 +21,20 @@ calibration:
   fit_train_window:
   - '2026-05-26T03:00:00+00:00'
   - '2026-05-26T19:30:00+00:00'
+location:
+  lat: 32.867
+  lon: -117.257
+aoi:
+  bbox:
+  - -117.30
+  - 32.82
+  - -117.21
+  - 32.91
+  polygon_geojson: configs/sites/aoi/scripps_pier_aoi.geojson
+  subset_radius_deg: 0.25
+satellite:
+  enabled: true
+  cache_root: data/satellite
 notes: "Co-located with CDIP 201 (Scripps Nearshore). Pier geometry baseline from\n\
   README; verify against SIO Facilities engineering docs before publishing\nvalidation\
   \ results.\n\nCam ToS note: the SIO piercam page publicly embeds the Surfline-routed\

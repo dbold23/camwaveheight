@@ -39,6 +39,48 @@ class Calibration(BaseModel):
     fit_train_window: tuple[str, str] | None = None  # ISO UTC start, end
 
 
+class GeoLocation(BaseModel):
+    """Camera / surf-zone location, used to subset gridded satellite products."""
+
+    lat: float
+    lon: float
+
+
+class AOI(BaseModel):
+    """Area of interest for satellite rasters (shoreline / environment).
+
+    `bbox` is (lonmin, latmin, lonmax, latmax). When absent, callers fall back
+    to a square of ±`subset_radius_deg` around `Site.location`.
+    """
+
+    bbox: tuple[float, float, float, float] | None = None
+    polygon_geojson: str | None = None  # path to a committable AOI polygon
+    subset_radius_deg: float = 0.25
+
+
+class SatelliteProducts(BaseModel):
+    """Default product / dataset identifiers for the satellite subpackage."""
+
+    cmems_wave_model_id: str = "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
+    cmems_wave_reanalysis_id: str = "cmems_mod_glo_wav_my_0.2deg_PT3H-i"
+    cmems_altimeter_l3_id: str = "cmems_obs-wave_glo_phy-swh_nrt_multi-l3_PT1S"
+    altimeter_max_dist_km: float = 50.0
+    sst_dataset: str = "MUR"  # or "CRW" for the no-auth NOAA CoastWatch fallback
+    wind_dataset: str = "ASCAT"
+    ocean_color_dataset: str = "S3_OLCI"
+    sds_collections: tuple[str, ...] = ("S2", "L8", "L9")
+    sds_max_cloud_pct: float = 20.0
+
+
+class SatelliteConfig(BaseModel):
+    """Per-site satellite stream config. Disabled by default so existing sites
+    are unaffected until they opt in."""
+
+    enabled: bool = False
+    products: SatelliteProducts = SatelliteProducts()
+    cache_root: str = "data/satellite"
+
+
 class Site(BaseModel):
     name: str
     cam_url: str | None = None  # may be None if using local-only recordings
@@ -49,6 +91,10 @@ class Site(BaseModel):
     buoy_id: str = Field(..., description="CDIP station number, e.g. '073'.")
     pier_geometry: PierGeometry | None = None
     calibration: Calibration = Calibration()
+    # Satellite stream (additive; all optional so existing YAML still validates).
+    location: GeoLocation | None = None
+    aoi: AOI | None = None
+    satellite: SatelliteConfig = SatelliteConfig()
     notes: str | None = None
 
     @classmethod

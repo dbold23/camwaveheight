@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "name": "scripps_pier_aoi",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "site": "scripps_pier",
+        "note": "Nearshore AOI around Scripps Pier (CDIP 201). ~1.5 km alongshore x ~0.3 km cross-shore. Used for satellite-derived shoreline / environment subsetting."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-117.2590, 32.8600],
+            [-117.2550, 32.8600],
+            [-117.2550, 32.8740],
+            [-117.2590, 32.8740],
+            [-117.2590, 32.8600]
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -39,6 +39,31 @@ class FitResult:
     scatter_index_test: float
 
 
+def _metrics(pred, ref) -> dict[str, float]:
+    """RMSE / bias / R^2 / scatter-index of `pred` vs reference `ref`.
+
+    Non-finite pairs are dropped. Shared by `fit_train_test` and `compare_sources`
+    so every source (cam, model, altimeter) is scored with identical math.
+    """
+    pred = np.asarray(pred, dtype=float)
+    ref = np.asarray(ref, dtype=float)
+    mask = np.isfinite(pred) & np.isfinite(ref)
+    pred, ref = pred[mask], ref[mask]
+    n = int(pred.size)
+    if n == 0:
+        return {"n": 0, "rmse": float("nan"), "bias": float("nan"),
+                "r2": float("nan"), "scatter_index": float("nan")}
+    resid = pred - ref
+    rmse = float(np.sqrt(np.mean(resid**2)))
+    bias = float(np.mean(resid))
+    ss_res = float(np.sum(resid**2))
+    ref_mean = float(np.mean(ref))
+    ss_tot = float(np.sum((ref - ref_mean) ** 2))
+    r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else float("nan")
+    si = rmse / ref_mean if ref_mean > 0 else float("nan")
+    return {"n": n, "rmse": rmse, "bias": bias, "r2": r2, "scatter_index": si}
+
+
 def align_to_buoy(
     cam_hs: pd.DataFrame,
     buoy: pd.DataFrame,
@@ -86,16 +111,14 @@ def fit_train_test(
     paired = paired.copy()
     paired["hs_pred_m"] = scale * paired["hs_px"] + bias
 
-    resid_train = paired.iloc[:n_train]["hs_pred_m"] - train["waveHs"]
-    resid_test = paired.iloc[n_train:]["hs_pred_m"] - test["waveHs"]
-
-    rmse_train = float(np.sqrt((resid_train**2).mean()))
-    rmse_test = float(np.sqrt((resid_test**2).mean()))
-    bias_test = float(resid_test.mean())
-    ss_res = float((resid_test**2).sum())
-    ss_tot = float(((test["waveHs"] - test["waveHs"].mean()) ** 2).sum())
-    r2 = 1 - ss_res / ss_tot if ss_tot > 0 else float("nan")
-    si = rmse_test / float(test["waveHs"].mean()) if test["waveHs"].mean() > 0 else float("nan")
+    # Same metric math as compare_sources, via the shared _metrics helper.
+    train_m = _metrics(paired.iloc[:n_train]["hs_pred_m"], train["waveHs"])
+    test_m = _metrics(paired.iloc[n_train:]["hs_pred_m"], test["waveHs"])
+    rmse_train = train_m["rmse"]
+    rmse_test = test_m["rmse"]
+    bias_test = test_m["bias"]
+    r2 = test_m["r2"]
+    si = test_m["scatter_index"]
 
     fit = FitResult(
         scale_m_per_px=float(scale),
@@ -183,3 +206,149 @@ def save_summary(fit: FitResult, train_window: tuple[str, str], out_path: str | 
     payload = {**asdict(fit), "fit_train_window": list(train_window)}
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     Path(out_path).write_text(json.dumps(payload, indent=2))
+
+
+# --------------------------------------------------------------------------- #
+# Three-way comparison: cam Hs vs CDIP buoy vs a satellite/model source.
+# Additive — the two-way cam-vs-buoy path above is untouched.
+# --------------------------------------------------------------------------- #
+
+
+def merge_source(
+    paired: pd.DataFrame,
+    source: pd.DataFrame,
+    source_col: str,
+    out_col: str | None = None,
+    tolerance: str = "90min",
+) -> pd.DataFrame:
+    """asof-merge one extra source column onto an existing buoy-timeline frame.
+
+    `paired` is the output of `align_to_buoy` / `fit_train_test` (UTC index on buoy
+    times). `source` is any UTC-indexed satellite/model frame (e.g. the CMEMS model
+    at 3-hourly cadence — hence the larger default tolerance). Rows with no match
+    within `tolerance` get NaN in `out_col`.
+    """
+    out_col = out_col or source_col
+    if source_col not in source.columns:
+        raise KeyError(f"source has no column '{source_col}'; has {list(source.columns)}")
+    src = source[[source_col]].rename(columns={source_col: out_col}).sort_index().copy()
+    src.index = pd.to_datetime(src.index, utc=True).as_unit("ns")
+    src = src[~src.index.duplicated(keep="first")].dropna()
+    base = paired.copy()
+    base.index = pd.to_datetime(base.index, utc=True).as_unit("ns")
+    base = base.sort_index()
+    return pd.merge_asof(
+        base,
+        src,
+        left_index=True,
+        right_index=True,
+        tolerance=pd.Timedelta(tolerance),
+        direction="nearest",
+    )
+
+
+def align_three_way(
+    cam_hs: pd.DataFrame,
+    buoy: pd.DataFrame,
+    source: pd.DataFrame,
+    source_col: str = "model_hs",
+    cam_col: str = "hs_px_4std",
+    cam_tolerance: str = "15min",
+    source_tolerance: str = "90min",
+) -> pd.DataFrame:
+    """Buoy-timeline frame carrying cam Hs (px) and a model/sat source.
+
+    Convenience: `align_to_buoy(cam_hs, buoy)` then `merge_source` for the
+    satellite/model column. Returns waveHs, waveTp, hs_px, <source_col>. For a
+    fitted comparison, fit cam→meters first with `fit_train_test`, then add more
+    sources (e.g. altimeter) onto that result with `merge_source`.
+    """
+    paired = align_to_buoy(cam_hs, buoy, tolerance=cam_tolerance, cam_col=cam_col)
+    return merge_source(paired, source, source_col, tolerance=source_tolerance)
+
+
+def compare_sources(
+    paired: pd.DataFrame,
+    sources: tuple[str, ...] = ("hs_pred_m", "model_hs", "alt_swh"),
+    reference: str = "waveHs",
+) -> pd.DataFrame:
+    """Per-source RMSE / bias / R² / scatter-index against `reference`.
+
+    Returns a DataFrame indexed by source name with columns n, rmse, bias, r2,
+    scatter_index. Sources absent from `paired` are skipped; each present source is
+    scored over the rows where both it and the reference are finite (so a sparse
+    altimeter is judged only on its few valid rows).
+    """
+    if reference not in paired.columns:
+        raise KeyError(
+            f"reference '{reference}' not in paired columns {list(paired.columns)}"
+        )
+    rows = []
+    for src in sources:
+        if src not in paired.columns:
+            log.info("compare_sources: skipping absent source '%s'", src)
+            continue
+        rows.append({"source": src, **_metrics(paired[src], paired[reference])})
+    out = pd.DataFrame(rows)
+    if not out.empty:
+        out = out.set_index("source")
+    return out
+
+
+def plot_three_way(
+    paired: pd.DataFrame,
+    sources: tuple[str, ...] = ("hs_pred_m", "model_hs", "alt_swh"),
+    reference: str = "waveHs",
+    out_dir: str | Path = "reports",
+    tag: str = "threeway",
+) -> dict[str, Path]:
+    """Time-series overlay + scatter of every available source vs the buoy.
+
+    Styled like `plot_validation`. Returns the written file paths.
+    """
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    present = [s for s in sources if s in paired.columns]
+    style = {
+        "hs_pred_m": ("C3", "cam Hs (fit)", ".-"),
+        "model_hs": ("C1", "CMEMS model", ".-"),
+        "alt_swh": ("C2", "altimeter SWH", "x"),
+    }
+
+    # Timeseries
+    fig, ax = plt.subplots(figsize=(11, 4))
+    ax.plot(paired.index, paired[reference], "o-", color="C0", ms=3, label=f"{reference} (CDIP)")
+    for s in present:
+        color, label, marker = style.get(s, (None, s, ".-"))
+        ax.plot(paired.index, paired[s], marker, color=color, ms=5, alpha=0.85, label=label)
+    ax.set_ylabel("Hs (m)")
+    ax.set_xlabel("UTC")
+    ax.set_title(f"Three-way Hs vs CDIP — {tag}")
+    ax.legend()
+    ts_path = out_dir / f"threeway_{tag}_timeseries.png"
+    fig.tight_layout()
+    fig.savefig(ts_path, dpi=120)
+    plt.close(fig)
+
+    # Scatter
+    fig, ax = plt.subplots(figsize=(5, 5))
+    for s in present:
+        color, label, _ = style.get(s, (None, s, ".-"))
+        sub = paired[[reference, s]].dropna()
+        ax.scatter(sub[reference], sub[s], s=18, alpha=0.7, color=color, label=label)
+    allv = pd.concat([paired[reference], *[paired[s] for s in present]]).dropna()
+    if not allv.empty:
+        lim = [float(allv.min()) * 0.9, float(allv.max()) * 1.1]
+        ax.plot(lim, lim, "k--", alpha=0.5)
+        ax.set_xlim(lim)
+        ax.set_ylim(lim)
+    ax.set_xlabel(f"{reference} (m)")
+    ax.set_ylabel("source Hs (m)")
+    ax.set_title(f"{tag}: sources vs CDIP")
+    ax.legend()
+    sc_path = out_dir / f"threeway_{tag}_scatter.png"
+    fig.tight_layout()
+    fig.savefig(sc_path, dpi=120)
+    plt.close(fig)
+
+    return {"timeseries": ts_path, "scatter": sc_path}

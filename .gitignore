@@ -26,6 +26,12 @@ env/
 *.onnx
 weights/
 
+# Secrets / credentials (satellite providers — never commit)
+.env
+*.netrc
+.copernicusmarine/
+configs/secrets*.yaml
+
 # OS
 .DS_Store
 Thumbs.db
