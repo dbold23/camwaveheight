@@ -37,6 +37,8 @@ dashboard = [
 # GDAL-backed shoreline stack stays opt-in.
 sat-waves = [
     "copernicusmarine>=1.3",
+    "xarray>=2024.1",
+    "netcdf4>=1.6",
 ]
 sat-shoreline = [
     "earthengine-api>=0.1.390",
@@ -58,6 +60,10 @@ dev = [
     "pytest>=8",
     "ruff>=0.3",
     "ipykernel>=6.29",
+    # tests/test_waves_cache.py writes a tiny .nc and reads it back, so the
+    # netCDF stack is needed to run the suite without the copernicusmarine dep.
+    "xarray>=2024.1",
+    "netcdf4>=1.6",
 ]
 
 [project.scripts]
