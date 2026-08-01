@@ -1,5 +1,13 @@
 # CamWaveHeight — Webcam-Based Wave Height Inference
 
+> **Archived.** Development continues in `scripps-pier-cams`, a consolidated
+> repository for the computer-vision instruments built on the Scripps Pier
+> cameras — this wave-height work alongside two tools on the COOL Lab underwater
+> cam: visibility-distance estimation and fish/species classification. They share
+> one ingest layer, one site-config schema and one database, which is why they
+> were brought together. This repository is read-only and kept as a record; its
+> full history was imported into the monorepo.
+
 A CV pipeline that estimates significant wave height (Hs) at California beaches from public webcam feeds, calibrated by linear regression against CDIP nearshore buoys.
 
 ## The measurement, in action
