@@ -35,13 +35,15 @@ def load_gcps(path: str) -> list[rectify.ScaleGCP]:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--frame", default="/tmp/daytime_horizon.png")
+    ap.add_argument("--frame", default="calibration_data/keyframe_daytime.png")
     ap.add_argument("--gcps", default="calibration_data/scale_marks.csv")
     ap.add_argument("--surf-rows", default="480,620", help="row range where waves break")
     ap.add_argument("--out", default="reports/rectify_report.png")
     args = ap.parse_args()
 
     fr = cv2.imread(args.frame)
+    if fr is None:
+        raise SystemExit(f"cannot read frame: {args.frame}")
     v_h, roll = rectify.detect_horizon(fr)
     gcps = load_gcps(args.gcps)
     print(f"loaded {len(gcps)} GCP(s): " + ", ".join(

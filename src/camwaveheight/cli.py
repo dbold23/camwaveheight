@@ -6,7 +6,6 @@ import logging
 from pathlib import Path
 
 import click
-import pandas as pd
 
 from camwaveheight import cdip, ingest
 from camwaveheight.site import Site, WaveROI
