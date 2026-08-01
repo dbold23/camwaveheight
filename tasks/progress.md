@@ -42,13 +42,12 @@ CoastSat — these are P0/P2/P3 network paths exercised only via mocks here.
 **Next:** install `.[sat-waves]` + `copernicusmarine login`, then
 `cwh sat-waves --product model --start 2026-05-07 --end 2026-05-28` and
 `cwh sat-validate` (model-vs-CDIP RMSE < 0.3 m proves alignment/units). Changes
-are uncommitted in the working tree pending review.
+are committed.
 
-> ⚠️ Environment note: the **internal root disk is ~100% full** (228 GB container,
-> fluctuating 0–175 MB free). `/private/tmp` lives there, so shell output capture
-> intermittently fails. Work was routed to the external volume
-> (`TMPDIR=<scratch dir on a volume with space>`, `pip --no-cache-dir`).
-> Free space on the internal disk before heavy runs.
+> ⚠️ Environment note: this work was done on a machine whose system disk was
+> essentially full, which made temp-heavy steps fail unpredictably. If you hit
+> that, point `TMPDIR` at a volume with room and install with `pip --no-cache-dir`.
+> Free space before heavy runs.
 
 ## ACTIVE (2026-05-28): widening the validation
 
